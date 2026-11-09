@@ -2,6 +2,7 @@ import { dismissesPopover } from "./popoverEscape";
 
 const SWALLOWED = ["mousedown", "pointerup", "mouseup", "click", "touchstart", "touchend"] as const;
 const SWALLOW_MS = 800;
+const CAPTURE = { capture: true };
 const TEXT_ENTRY = "input, textarea, [contenteditable=''], [contenteditable='true']";
 
 type Target = Pick<EventTarget, "addEventListener" | "removeEventListener">;
@@ -37,14 +38,14 @@ export function startDownloadsDismissal({ target, inside, close, watchPageFocus,
     event.preventDefault();
     close();
   };
-  target.addEventListener("pointerdown", down, true);
-  for (const type of SWALLOWED) target.addEventListener(type, swallow, true);
-  target.addEventListener("keydown", key, true);
+  target.addEventListener("pointerdown", down, CAPTURE);
+  for (const type of SWALLOWED) target.addEventListener(type, swallow, CAPTURE);
+  target.addEventListener("keydown", key, CAPTURE);
   const stopPage = watchPageFocus(close);
   return () => {
-    target.removeEventListener("pointerdown", down, true);
-    for (const type of SWALLOWED) target.removeEventListener(type, swallow, true);
-    target.removeEventListener("keydown", key, true);
+    target.removeEventListener("pointerdown", down, CAPTURE);
+    for (const type of SWALLOWED) target.removeEventListener(type, swallow, CAPTURE);
+    target.removeEventListener("keydown", key, CAPTURE);
     stopPage();
   };
 }
