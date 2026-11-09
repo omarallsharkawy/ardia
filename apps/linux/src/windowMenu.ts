@@ -32,7 +32,7 @@ export function windowMenuItems(input: { windowId: string; windows: WindowMenuWi
   const listed = new Set(input.windows.map((w) => w.id));
   const privateWindows = privateWindowEntries(input.privateWindows, input.windowId).filter((w) => !listed.has(w.id));
   return [
-    { id: "minimize", title: "Minimize" },
+    { id: "minimize", title: "Minimize", enabled: false },
     { id: "maximize", title: "Maximize" },
     { separator: true },
     { id: "command:downloads", title: "Downloads" },

@@ -93,7 +93,7 @@ void ASettleThatEndsInactiveStaysHidden() {
 }
 
 void LeavingAnyOtherWayIsNotOver() {
-  for (const auto [x, y] : {std::pair{600.0, -1.0}, {600.0, kHeight}, {1500.0, 300.0}, {LeftEdgeWatch::kLeaveReach, 300.0}, {4.0, -1.0}, {20.0, 6.0}, {20.0, kHeight - 6}}) {
+  for (const auto& [x, y] : {std::pair{600.0, -1.0}, {600.0, kHeight}, {1500.0, 300.0}, {LeftEdgeWatch::kLeaveReach, 300.0}, {4.0, -1.0}, {20.0, 6.0}, {20.0, kHeight - 6}}) {
     LeftEdgeWatch edge;
     edge.Watch(kHold, true);
     assert(Over(edge.Moved(100, 300, kHeight)));

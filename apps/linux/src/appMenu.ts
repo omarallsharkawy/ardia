@@ -193,7 +193,7 @@ export function appMenuItems(state: MenuState, shortcuts: AppMenuShortcuts = new
       cmd("pinExtensions"),
     ]),
     sub("Window", [
-      windowAction("minimize", "Minimize"),
+      { ...windowAction("minimize", "Minimize"), enabled: false },
       windowAction("maximize", "Maximize"),
       separator,
       cmd("downloads"),
