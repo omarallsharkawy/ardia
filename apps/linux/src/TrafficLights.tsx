@@ -29,7 +29,7 @@ export function TrafficLights({ windowId }: { windowId: string }) {
       void linuxWindowMenu.open(windowId).catch(reportHostError);
     }}>
       {controls.map(({ light, method, label }, index) => (
-        <button key={light} className={`ardia-window-control ${light}`} data-ardia-window-control={light} aria-label={label} title={label} disabled={windowId === "import" && light === "zoom"} style={{ left: center[0] + index * 23 - 7, top: center[1] - 7 }} onClick={() => void (light === "close" ? closeWindow(windowId) : hostModuleMethod("ArdiaShell", method)(windowId)).catch(reportHostError)}>
+        <button key={light} className={`ardia-window-control ${light}`} data-ardia-window-control={light} aria-label={label} title={label} disabled={light === "minimize" || (windowId === "import" && light === "zoom")} style={{ left: center[0] + index * 23 - 7, top: center[1] - 7 }} onClick={() => void (light === "close" ? closeWindow(windowId) : hostModuleMethod("ArdiaShell", method)(windowId)).catch(reportHostError)}>
           <TrafficLight name={light} theme={theme} />
           <span aria-hidden className="ardia-window-control-mark">{light === "close" ? "×" : light === "minimize" ? "−" : "+"}</span>
         </button>

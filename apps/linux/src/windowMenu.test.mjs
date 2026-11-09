@@ -101,7 +101,6 @@ test("choosing a window focuses it through the host and commands go to the share
   assert.deepEqual(native, [
     ["ArdiaShell.focusWindow", { args: ["w-p1"] }],
     ["ArdiaShell.focusWindow", { args: ["second"] }],
-    ["ArdiaShell.minimizeWindow", { args: ["main"] }],
     ["ArdiaShell.toggleMaximizeWindow", { args: ["main"] }],
   ]);
   assert.deepEqual(f.commands, [{ command: "downloads", arg: null, windowId: "main" }]);
