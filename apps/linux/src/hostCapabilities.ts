@@ -51,6 +51,7 @@ export function unavailableSettingIds(capabilities: LinuxCapabilities, settingId
   if (!capabilities.launchAtLogin) ids.add("general.openAtLogin");
   if (!capabilities.thinScrollBars) ids.add("appearance.pageScrollBars");
   if (!capabilities.videoUpscaling) ids.add("tabs.videoUpscaling");
+  for (const id of ["privacy.commandScrollZoom", "general.littleArdiaOpensNewTabLinks"]) if (settingIds.includes(id)) ids.add(id);
   if (!capabilities.cliControl) for (const id of ["advanced.cliControl", "advanced.cliInstall"]) ids.add(id);
   if (!capabilities.cliInstall) ids.add("advanced.cliInstall");
   if (!capabilities.webkit) for (const id of settingIds) if (id.startsWith("engines.")) ids.add(id);

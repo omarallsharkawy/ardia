@@ -28,6 +28,14 @@ const synchronousMethods: Record<string, Record<string, unknown>> = {
 const nativeFallthroughs = new WeakSet<object>();
 export const reachesNativeHostUnchecked = (resolved: unknown) => typeof resolved === "function" && nativeFallthroughs.has(resolved);
 
+const UNROUTED_WEBVIEW_OPTIONS = new Set([
+  "setCommandScrollZoom",
+  "setDisplayMediaPicker",
+  "setLittleArdiaOpensNewTabLinks",
+  "setPeekOtherSiteTabs",
+  "setVideoUpscaling",
+]);
+
 export function resolveHostModule(host: ArdiaHost, name: string, method: string): unknown {
   if (name === "ArdiaApp" && method === "launchConfig") return () => hostLaunchConfig(host);
   if (name === "ArdiaShell" && method === "watchSidebarEdge" && !hostSupports("ArdiaShell.watchSidebarEdge", host) && hostSupports("ArdiaShell.watchLeftEdge", host)) {
@@ -67,7 +75,9 @@ export function resolveHostModule(host: ArdiaHost, name: string, method: string)
   }
   if (method === "call" && /^Ardia[A-Z]/.test(name)) {
     const domain = name.slice(5, 6).toLowerCase() + name.slice(6);
-    return (verb: string, profile: string, args: string) => callHost(`${domain}.${verb}`, profile, args, host);
+    return (verb: string, profile: string, args: string) => domain === "webView" && UNROUTED_WEBVIEW_OPTIONS.has(verb)
+      ? Promise.resolve("null")
+      : callHost(`${domain}.${verb}`, profile, args, host);
   }
   const constants = host.bootstrap.nativeModules?.[name];
   const sync = synchronousMethods[name];
