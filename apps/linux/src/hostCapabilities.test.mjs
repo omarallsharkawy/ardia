@@ -336,3 +336,16 @@ test("the media domain keeps reaching the host for everything but casting", asyn
   assert.equal(await call("showCastDialog", "", JSON.stringify({ tabId: "missing" })), "false");
   assert.deepEqual(calls, ["media.selectDevice"]);
 });
+
+test("page options Linux has no route for answer without reaching the host", async () => {
+  const f = fakeHost();
+  const replies = [];
+  f.host.call = async (name) => { replies.push(name); return "{}"; };
+  const call = resolveHostModule(f.host, "ArdiaWebView", "call");
+  for (const verb of ["setCommandScrollZoom", "setDisplayMediaPicker", "setLittleArdiaOpensNewTabLinks", "setPeekOtherSiteTabs", "setVideoUpscaling"]) {
+    assert.equal(await call(verb, "", "{}"), "null");
+  }
+  assert.deepEqual(replies, []);
+  await call("reload", "", "{}");
+  assert.deepEqual(replies, ["webView.reload"]);
+});
