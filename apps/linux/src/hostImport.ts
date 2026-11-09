@@ -123,7 +123,7 @@ export function createHostImport(host: ArdiaHost, ImportError: ImportErrorClass,
     return { done, stop: () => stop() };
   }
 
-  const importData: Api["importData"] = (browserId, profileId, kinds, options = {}) => {
+  const importOnce: Api["importData"] = (browserId, profileId, kinds, options = {}) => {
     if (options.signal?.aborted) return Promise.reject(failure("cancelled", "Import cancelled"));
     const jobId = nextId("import");
     return new Promise<ImportApi.ImportResult>((resolve, reject) => {
@@ -189,6 +189,25 @@ export function createHostImport(host: ArdiaHost, ImportError: ImportErrorClass,
       const native = { historyLimit: options.historyLimit, historySince: options.historySince };
       invoke("startImport", [jobId, browserId, profileId, kinds, native]).catch((error) => finish(() => reject(error)));
     });
+  };
+
+  const importData: Api["importData"] = async (browserId, profileId, kinds, options = {}) => {
+    try {
+      return await importOnce(browserId, profileId, kinds, options);
+    } catch (error) {
+      const { code, message } = error as { code?: string; message?: string };
+      if (code !== "cancelled") console.error(`Import from ${browserId} failed: ${code}: ${message}`);
+      const others = kinds.filter((kind) => kind !== "passwords");
+      if (code !== "ERR_SECRET_IN_REPLY" || !others.length || others.length === kinds.length) throw error;
+      const result = await importOnce(browserId, profileId, others, options);
+      try {
+        const passwords = await importOnce(browserId, profileId, ["passwords"], options);
+        return { ...result, passwords: (passwords as { passwords?: unknown }).passwords, failed: [...result.failed, ...passwords.failed], warnings: [...result.warnings, ...passwords.warnings] } as typeof result;
+      } catch (passwordError) {
+        if ((passwordError as { code?: string }).code === "cancelled") throw passwordError;
+        return { ...result, failed: [...result.failed, "passwords"] };
+      }
+    }
   };
 
   const finishByEvent = <T,>(method: string, args: unknown[], prefix: string, success: string, read: (event: ImportEvent) => T, idleMs: number, stalled: string) => {

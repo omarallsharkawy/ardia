@@ -483,3 +483,33 @@ test("import handles nobody claims expire after their lifetime and never become 
   assert.equal(await claimImportHandle(row.password, "work"), false);
   assert.deepEqual(writes, []);
 });
+
+test("a result withheld for matching a password imports again in two parts", async () => {
+  const f = fixture();
+  const job = () => f.calls.filter((c) => c.method === "ArdiaImport.startImport").at(-1).args;
+  const importing = f.api.importData("chrome", "Default", ["bookmarks", "passwords"]);
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "ERR_SECRET_IN_REPLY", message: "withheld" });
+  await settle();
+  assert.deepEqual(job()[3], ["bookmarks"]);
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [{ kind: "bookmarks", code: "skipped", message: "one" }] } });
+  await settle();
+  assert.deepEqual(job()[3], ["passwords"]);
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [], passwords: { token: TOKEN, count: 2 } } });
+  const result = await importing;
+  assert.equal(pendingPasswords(result).token, TOKEN);
+  assert.equal(result.warnings.length, 1);
+});
+
+test("withheld passwords fail alone and leave the other kinds imported", async () => {
+  const f = fixture();
+  const job = () => f.calls.filter((c) => c.method === "ArdiaImport.startImport").at(-1).args;
+  const importing = f.api.importData("chrome", "Default", ["history", "passwords"]);
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "ERR_SECRET_IN_REPLY", message: "withheld" });
+  await settle();
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [] } });
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "ERR_SECRET_IN_REPLY", message: "withheld" });
+  assert.deepEqual((await importing).failed, ["passwords"]);
+});
