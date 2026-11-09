@@ -3,31 +3,43 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: install.sh [--prefix DIR] [--destdir DIR]
+Usage: install.sh [--prefix DIR] [--destdir DIR] [--user]
 
 Installs an extracted Ardia Linux package.
 
   --prefix DIR   absolute install prefix (default /usr)
   --destdir DIR  staging root for distribution packages (default none)
+  --user         install for this user under ~/.local, without root
 
 Ardia goes under PREFIX/lib/ardia with PREFIX/bin/ardia, its desktop entry
 and icon. The polkit policy always goes to DESTDIR/usr/share/polkit-1/actions,
 the only directory polkit reads actions from, whatever the prefix.
-Without --destdir it must run as root, and installed files are owned by root.
+Without --destdir or --user it must run as root, and installed files are owned
+by root. --user skips the polkit policy, so asking the system to confirm before
+showing saved passwords needs a root install.
 USAGE
 }
 
 prefix=/usr
 destdir=
+user_install=
 while (($#)); do
   case "$1" in
     --prefix) prefix="${2:?--prefix needs a directory}"; shift 2 ;;
     --destdir) destdir="${2:?--destdir needs a directory}"; shift 2 ;;
+    --user) user_install=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
 done
 
+if [[ -n "$user_install" ]]; then
+  if [[ -n "$destdir" ]]; then
+    echo "install.sh: --user and --destdir can't be combined" >&2
+    exit 2
+  fi
+  prefix="${HOME:?--user needs HOME}/.local"
+fi
 if [[ ! "$prefix" =~ ^/[A-Za-z0-9._/+-]*$ ]]; then
   echo "install.sh: --prefix must be an absolute path of letters, digits and ._/+-: $prefix" >&2
   exit 2
@@ -39,7 +51,7 @@ fi
 prefix="${prefix%/}"
 [[ -n "$prefix" ]] || prefix=/usr
 
-if [[ -z "$destdir" && "$(id -u)" != 0 ]]; then
+if [[ -z "$destdir" && -z "$user_install" && "$(id -u)" != 0 ]]; then
   echo "install.sh: installing into $prefix needs root (run it with sudo), or pass --destdir to stage it" >&2
   exit 1
 fi
@@ -73,5 +85,7 @@ if [[ -f "$source_root/$icon" ]]; then
   install -D -m 0644 "$source_root/$icon" "$target/$icon"
 fi
 
-install -D -m 0644 "$source_root/share/polkit-1/actions/dev.ardia.linux.policy" \
-  "$destdir/usr/share/polkit-1/actions/dev.ardia.linux.policy"
+if [[ -z "$user_install" ]]; then
+  install -D -m 0644 "$source_root/share/polkit-1/actions/dev.ardia.linux.policy" \
+    "$destdir/usr/share/polkit-1/actions/dev.ardia.linux.policy"
+fi
