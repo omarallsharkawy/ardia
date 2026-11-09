@@ -99,7 +99,7 @@ void ASettleThatEndsInactiveStaysHidden(SidebarSide side) {
 }
 
 void LeavingAnyOtherWayIsNotOver(SidebarSide side) {
-  for (const auto [x, y] : {std::pair{600.0, -1.0}, {600.0, kHeight}, {1500.0, 300.0}, {SidebarEdgeWatch::kLeaveReach, 300.0}, {4.0, -SidebarEdgeWatch::kReach - 1}, {4.0, kHeight + SidebarEdgeWatch::kReach}, {kHold, -1.0}, {kHold, 6.0}}) {
+  for (const auto& [x, y] : {std::pair{600.0, -1.0}, {600.0, kHeight}, {1500.0, 300.0}, {SidebarEdgeWatch::kLeaveReach, 300.0}, {4.0, -SidebarEdgeWatch::kReach - 1}, {4.0, kHeight + SidebarEdgeWatch::kReach}, {kHold, -1.0}, {kHold, 6.0}}) {
     SidebarEdgeWatch edge;
     edge.Watch(kHold, side, true);
     assert(Over(edge.Moved(At(side, 100), 300, kWidth, kHeight)));
@@ -111,7 +111,7 @@ void LeavingAnyOtherWayIsNotOver(SidebarSide side) {
 }
 
 void APeekStaysOutWhenThePointerLeavesThroughTheTopOrBottomOfItsColumn(SidebarSide side) {
-  for (const auto [x, y] : {std::pair{4.0, -1.0}, {4.0, -SidebarEdgeWatch::kReach}, {-3.0, -2.0}, {120.0, -1.0}, {20.0, 6.0}, {4.0, kHeight}, {20.0, kHeight - 6}}) {
+  for (const auto& [x, y] : {std::pair{4.0, -1.0}, {4.0, -SidebarEdgeWatch::kReach}, {-3.0, -2.0}, {120.0, -1.0}, {20.0, 6.0}, {4.0, kHeight}, {20.0, kHeight - 6}}) {
     SidebarEdgeWatch edge;
     edge.Watch(kHold, side, true);
     assert(Over(edge.Moved(At(side, 100), 300, kWidth, kHeight)));
@@ -124,7 +124,7 @@ void APeekStaysOutWhenThePointerLeavesThroughTheTopOrBottomOfItsColumn(SidebarSi
 }
 
 void LeavingThroughTheTopCornerDoesNotRevealAHiddenStrip(SidebarSide side) {
-  for (const auto [x, y] : {std::pair{4.0, -1.0}, {20.0, 6.0}, {4.0, kHeight}}) {
+  for (const auto& [x, y] : {std::pair{4.0, -1.0}, {20.0, 6.0}, {4.0, kHeight}}) {
     SidebarEdgeWatch edge;
     edge.Watch(0, side, true);
     assert(!edge.Moved(At(side, 40), 300, kWidth, kHeight));
