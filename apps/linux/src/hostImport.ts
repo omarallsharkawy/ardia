@@ -18,6 +18,19 @@ export const UNLOCK_DEADLINE_MS = 150_000;
 export const UNLOCK_LIFETIME_MS = 10 * 60_000;
 const HISTORY_CHUNK = 500;
 const TOKEN = /^[0-9a-f]{32}$/;
+const WITHHELD = "ERR_SECRET_IN_REPLY";
+const SECRET_GROUPS: readonly (readonly ImportApi.ImportKind[])[] = [["passwords"], ["cookies", "autofill"]];
+
+// The engine withholds a whole import reply when any value in it equals a saved password, a cookie value or a card
+// number it read in the same job, so one cookie whose value is also a history URL fails every kind. Bookmarks,
+// history and tabs read none of those, so a withheld import runs again with them apart from passwords, and apart
+// from cookies and cards (which share one vault). A part withheld again splits into single kinds.
+export function splitWithheld(kinds: readonly ImportApi.ImportKind[]): ImportApi.ImportKind[][] {
+  const secret = (kind: ImportApi.ImportKind) => SECRET_GROUPS.some((group) => group.includes(kind));
+  const parts = [kinds.filter((kind) => !secret(kind)), ...SECRET_GROUPS.map((group) => kinds.filter((kind) => group.includes(kind)))]
+    .filter((part) => part.length > 0);
+  return parts.length > 1 ? parts : kinds.map((kind) => [kind]);
+}
 
 type Clock = { schedule(run: () => void, ms: number): unknown; cancel(handle: unknown): void; now?(): number };
 const realClock: Clock = { schedule: (run, ms) => setTimeout(run, ms), cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>), now: () => Date.now() };
@@ -191,22 +204,83 @@ export function createHostImport(host: ArdiaHost, ImportError: ImportErrorClass,
     });
   };
 
-  const importData: Api["importData"] = async (browserId, profileId, kinds, options = {}) => {
+  type Part = { kinds: ImportApi.ImportKind[]; result: ImportApi.ImportResult };
+  type Held = ImportApi.ImportResult & { passwords?: unknown };
+
+  const discardHeld = (result: ImportApi.ImportResult) => {
+    const held = pendingPasswords(result);
+    if (held) void invoke("discardPasswords", [held.token]).catch(reportHostError);
+    if (result.vaultToken) void invoke("discardImported", [result.vaultToken]).catch(reportHostError);
+  };
+
+  const mergeParts = (parts: Part[], failed: ImportApi.ImportKind[]): ImportApi.ImportResult => {
+    const [first, ...rest] = parts;
+    const merged: Held = { ...first.result };
+    for (const { kinds, result } of rest) {
+      const part = result as Held;
+      if ((part.vaultToken && merged.vaultToken) || (pendingPasswords(part) && pendingPasswords(merged))) {
+        discardHeld(part);
+        failed.push(...kinds);
+        continue;
+      }
+      merged.profile ??= part.profile;
+      merged.bookmarks ??= part.bookmarks;
+      merged.vaultToken ??= part.vaultToken;
+      if (pendingPasswords(part)) merged.passwords = part.passwords;
+      merged.history = [...merged.history, ...part.history];
+      merged.tabs = [...merged.tabs, ...part.tabs];
+      merged.tabGroups = [...merged.tabGroups, ...part.tabGroups];
+      merged.spaces = [...merged.spaces, ...part.spaces];
+      merged.favorites = [...merged.favorites, ...part.favorites];
+      merged.favicons = [...merged.favicons, ...part.favicons];
+      merged.warnings = [...merged.warnings, ...part.warnings];
+      merged.failed = [...merged.failed, ...part.failed];
+      merged.historyCount += part.historyCount;
+      merged.cookieCount += part.cookieCount;
+      merged.addressCount += part.addressCount;
+      merged.cardCount += part.cardCount;
+    }
+    merged.failed = [...new Set([...merged.failed, ...failed])];
+    return merged;
+  };
+
+  const importParts = async (
+    browserId: string,
+    profileId: string,
+    kinds: ImportApi.ImportKind[],
+    options: Parameters<Api["importData"]>[3] = {},
+  ): Promise<ImportApi.ImportResult> => {
     try {
       return await importOnce(browserId, profileId, kinds, options);
     } catch (error) {
+      if ((error as { code?: string }).code !== WITHHELD || kinds.length < 2) throw error;
+      const parts: Part[] = [];
+      const failed: ImportApi.ImportKind[] = [];
+      let firstError: unknown = null;
+      for (const part of splitWithheld(kinds)) {
+        try {
+          parts.push({ kinds: part, result: await importParts(browserId, profileId, part, options) });
+        } catch (partError) {
+          if ((partError as { code?: string }).code === "cancelled") {
+            for (const done of parts) discardHeld(done.result);
+            throw partError;
+          }
+          firstError ??= partError;
+          failed.push(...part);
+        }
+      }
+      if (!parts.length) throw firstError ?? error;
+      return mergeParts(parts, failed);
+    }
+  };
+
+  const importData: Api["importData"] = async (browserId, profileId, kinds, options = {}) => {
+    try {
+      return await importParts(browserId, profileId, kinds, options);
+    } catch (error) {
       const { code, message } = error as { code?: string; message?: string };
       if (code !== "cancelled") console.error(`Import from ${browserId} failed: ${code}: ${message}`);
-      const others = kinds.filter((kind) => kind !== "passwords");
-      if (code !== "ERR_SECRET_IN_REPLY" || !others.length || others.length === kinds.length) throw error;
-      const result = await importOnce(browserId, profileId, others, options);
-      try {
-        const passwords = await importOnce(browserId, profileId, ["passwords"], options);
-        return { ...result, passwords: (passwords as { passwords?: unknown }).passwords, failed: [...result.failed, ...passwords.failed], warnings: [...result.warnings, ...passwords.warnings] } as typeof result;
-      } catch (passwordError) {
-        if ((passwordError as { code?: string }).code === "cancelled") throw passwordError;
-        return { ...result, failed: [...result.failed, "passwords"] };
-      }
+      throw error;
     }
   };
 
