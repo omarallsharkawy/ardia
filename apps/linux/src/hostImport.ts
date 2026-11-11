@@ -213,8 +213,7 @@ export function createHostImport(host: ArdiaHost, ImportError: ImportErrorClass,
     if (result.vaultToken) void invoke("discardImported", [result.vaultToken]).catch(reportHostError);
   };
 
-  const mergeParts = (parts: Part[], failed: ImportApi.ImportKind[]): ImportApi.ImportResult => {
-    const [first, ...rest] = parts;
+  const mergeParts = (first: Part, rest: Part[], failed: ImportApi.ImportKind[]): ImportApi.ImportResult => {
     const merged: Held = { ...first.result };
     for (const { kinds, result } of rest) {
       const part = result as Held;
@@ -269,8 +268,9 @@ export function createHostImport(host: ArdiaHost, ImportError: ImportErrorClass,
           failed.push(...part);
         }
       }
-      if (!parts.length) throw firstError ?? error;
-      return mergeParts(parts, failed);
+      const [first, ...rest] = parts;
+      if (!first) throw firstError ?? error;
+      return mergeParts(first, rest, failed);
     }
   };
 
