@@ -1,52 +1,55 @@
-# خطة إصدار لينكس
+# Linux roadmap
 
-مقارنة بين نسخة الماك ونسخة لينكس على فرع `linux-support` (كوميت `f6181b6b`).
+How the Linux build compares with the macOS one. The coverage numbers were taken on the `linux-support` branch at commit `f6181b6b`.
 
-## التغطية
+## Coverage
 
-مقارنة أسماء دوال الماك الأصلية بما تنفذه نسخة لينكس. دي مقارنة بالأسماء في الكود، مش تجربة لكل ميزة.
+The macOS native method names compared with what the Linux build implements. This compares names in the code; it isn't a test of each feature.
 
-| الحالة | العدد | المعنى |
+| Status | Count | Meaning |
 | --- | --- | --- |
-| موجودة | 136 | ليها تنفيذ على لينكس |
-| بديل فارغ | 64 | الاستدعاء بيرد بقيمة ثابتة أو "غير متاح" |
-| مش موجودة | 2 | `haptic` و `holdKeyLook` |
+| Implemented | 136 | Has a Linux implementation |
+| Empty fallback | 64 | The call answers a fixed value or "unavailable" |
+| Missing | 2 | `haptic` and `holdKeyLook` |
 
-الرقم ده من غير 38 دالة تطوير داخلية مالهاش أثر على المستخدم، ومن غير دوال `engine.*`. وبعض "البدائل الفارغة" ليها طريق تاني، زي `ArdiaKeychain`، لأن كلمات السر على لينكس بتتحفظ في Secret Service.
+This leaves out 38 internal development methods with no effect for users, and the `engine.*` methods. Some "empty fallbacks" have another route, such as `ArdiaKeychain`, because Linux keeps passwords in the Secret Service.
 
-## اتصلح في الفرع ده
+## Fixed in this fork
 
-- زر التصغير وعناصر القوايم بقوا معطلين، لأن الضغط عليهم على niri بيوقف رسم النافذة.
-- اختبار `downloadsDismissal` واختبار `left_edge` ومهلة اتصال `acceptance`.
-- خمس إعدادات صفحات مالهاش تنفيذ على لينكس بقت ترد بهدوء بدل أخطاء الكونسول.
-- إخفاء إعدادي `privacy.commandScrollZoom` و `general.littleArdiaOpensNewTabLinks` لأنهم من غير أثر على لينكس.
-- `install.sh --user` بيثبت في `~/.local` من غير root، ومن غير سياسة polkit.
+- Minimize and its menu items are disabled, because minimizing stops the window from painting on niri.
+- The `downloadsDismissal` and `left_edge` tests, and the `acceptance` connection timeout.
+- Five page settings with no Linux implementation answer quietly instead of logging console errors.
+- `privacy.commandScrollZoom` and `general.littleArdiaOpensNewTabLinks` are hidden, because they have no effect on Linux.
+- `install.sh --user` installs under `~/.local` without root and without the polkit policy.
+- An import the engine withholds (a value in it matches a password, cookie value or card number) runs again in groups: bookmarks, history and tabs; passwords; cookies and cards.
+- Usage data is off until the user turns it on, instead of always on.
+- CI tries archive.ubuntu.com first and times out instead of hanging when Ubuntu's mirrors don't answer.
 
-## محتاج بناء محرك (Chromium)
+## Needs an engine (Chromium) build
 
-1. قراءة `wm_capabilities` من Wayland، وتفعيل التصغير تاني على البيئات اللي بتدعمه زي GNOME و KDE.
-2. Paste and Go، لأن قراءة الحافظة بترجع فاضية.
-3. مسح بيانات البروفايل `profiles.deleteData`.
-4. تصدير المفضلة HTML، و `webView.setPeekOtherSiteTabs`، و `webView.setCommandScrollZoom`.
-5. سحب تبويب بين النوافذ على Wayland.
-6. تعيين المتصفح الافتراضي، والتشغيل مع بداية النظام، وشكل شريط التمرير.
+1. Read `wm_capabilities` from Wayland, and enable minimize again where the compositor supports it, such as GNOME and KDE.
+2. Paste and Go, because reading the clipboard returns nothing.
+3. Deleting a profile's data (`profiles.deleteData`).
+4. Exporting bookmarks as HTML, `webView.setPeekOtherSiteTabs` and `webView.setCommandScrollZoom`.
+5. Dragging a tab between windows on Wayland.
+6. Setting Ardia as the default browser from Settings, launching at login, and the scrollbar style.
 
-## ينفع من غير بناء محرك
+## Possible without an engine build
 
-1. بطاقة التمرير اللي بتفضل مفتوحة لما المؤشر يدخل الصفحة.
-2. فتحة الشريط الجانبي في تخطيط الشريط العلوي.
-3. حزمة AUR و AppImage.
+1. The hover card that stays open when the pointer moves into the page.
+2. The sidebar cut-out in the top tab strip layout.
+3. AUR and AppImage packages.
 
-البندين 1 و 2 محتاجين تجربة على نسخة شغالة، لأن الاختبارات الآلية مش بتغطي حركة المؤشر بين الشريط والصفحة.
+Items 1 and 2 need trying on a running build, because the automated tests don't cover the pointer moving between the strip and the page.
 
-## غير متاح على لينكس حاليًا
+## Not available on Linux yet
 
-البث Cast، والترجمة، وتحسين الفيديو، والتحديث التلقائي، وتقارير الأعطال، وإشعارات Ardia الخاصة، والمشاركة.
+Cast, translation, video upscaling, automatic updates, crash reports, Ardia's own notifications, and sharing.
 
-## خاص بالماك
+## macOS only
 
-Handoff، و AppleScript، وأيقونات التطبيق البديلة، ومزامنة iCloud. المزامنة على لينكس بتشتغل عبر مجلد.
+Handoff, AppleScript, alternate app icons and iCloud sync. Sync on Linux works through a folder.
 
-## محتاج تجربة يدوية
+## Needs manual testing
 
-الحسابات الحقيقية، والتقويم، ومديرو كلمات السر، ونافذة polkit، و pinch باللمس، والمزامنة بين لينكس وماك.
+Real accounts, the calendar, password managers, the polkit prompt, touchpad pinch, and sync between Linux and macOS.
