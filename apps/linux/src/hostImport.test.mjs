@@ -513,3 +513,79 @@ test("withheld passwords fail alone and leave the other kinds imported", async (
   f.emit({ jobId: job()[0], type: "failed", code: "ERR_SECRET_IN_REPLY", message: "withheld" });
   assert.deepEqual((await importing).failed, ["passwords"]);
 });
+
+test("a withheld import splits plain kinds from passwords and from cookies and cards", async () => {
+  const f = fixture();
+  const job = () => f.calls.filter((c) => c.method === "ArdiaImport.startImport").at(-1).args;
+  const importing = f.api.importData("brave", "Default", ["bookmarks", "history", "passwords", "cookies", "autofill", "tabs"]);
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "ERR_SECRET_IN_REPLY", message: "withheld" });
+  await settle();
+  assert.deepEqual(job()[3], ["bookmarks", "history", "tabs"]);
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [], history: [{ url: "https://a.example" }], historyCount: 1, tabs: [{ url: "https://b.example" }] } });
+  await settle();
+  assert.deepEqual(job()[3], ["passwords"]);
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [], passwords: { token: TOKEN, count: 17 } } });
+  await settle();
+  assert.deepEqual(job()[3], ["cookies", "autofill"]);
+  const vault = randomBytes(16).toString("hex");
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [], cookieCount: 810, cardCount: 1, vaultToken: vault } });
+  const result = await importing;
+  assert.equal(result.history.length, 1);
+  assert.equal(result.historyCount, 1);
+  assert.equal(result.tabs.length, 1);
+  assert.equal(pendingPasswords(result).count, 17);
+  assert.equal(result.cookieCount, 810);
+  assert.equal(result.cardCount, 1);
+  assert.equal(result.vaultToken, vault);
+  assert.deepEqual(result.failed, []);
+});
+
+test("cookies and cards withheld together import one at a time, and a second vault is discarded", async () => {
+  const f = fixture();
+  const job = () => f.calls.filter((c) => c.method === "ArdiaImport.startImport").at(-1).args;
+  const importing = f.api.importData("brave", "Default", ["cookies", "autofill"]);
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "ERR_SECRET_IN_REPLY", message: "withheld" });
+  await settle();
+  assert.deepEqual(job()[3], ["cookies"]);
+  const first = randomBytes(16).toString("hex");
+  const second = randomBytes(16).toString("hex");
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [], cookieCount: 3, vaultToken: first } });
+  await settle();
+  assert.deepEqual(job()[3], ["autofill"]);
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [], cardCount: 2, vaultToken: second } });
+  const result = await importing;
+  assert.equal(result.vaultToken, first);
+  assert.equal(result.cookieCount, 3);
+  assert.equal(result.cardCount, 0);
+  assert.deepEqual(result.failed, ["autofill"]);
+  assert.deepEqual(f.calls.filter((c) => c.method === "ArdiaImport.discardImported").map((c) => c.args[0]), [second]);
+});
+
+test("a withheld import fails when every part fails", async () => {
+  const f = fixture();
+  const job = () => f.calls.filter((c) => c.method === "ArdiaImport.startImport").at(-1).args;
+  const importing = f.api.importData("brave", "Default", ["history", "cookies"]);
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "ERR_SECRET_IN_REPLY", message: "withheld" });
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "unreadable", message: "history" });
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "locked", message: "cookies" });
+  await assert.rejects(importing, (error) => error.code === "unreadable");
+});
+
+test("cancelling a split import discards what earlier parts held", async () => {
+  const f = fixture();
+  const job = () => f.calls.filter((c) => c.method === "ArdiaImport.startImport").at(-1).args;
+  const importing = f.api.importData("brave", "Default", ["passwords", "cookies"]);
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "ERR_SECRET_IN_REPLY", message: "withheld" });
+  await settle();
+  f.emit({ jobId: job()[0], type: "done", result: { failed: [], warnings: [], passwords: { token: TOKEN, count: 1 } } });
+  await settle();
+  f.emit({ jobId: job()[0], type: "failed", code: "cancelled", message: "cancelled" });
+  await assert.rejects(importing, (error) => error.code === "cancelled");
+  assert.deepEqual(f.calls.filter((c) => c.method === "ArdiaImport.discardPasswords").map((c) => c.args[0]), [TOKEN]);
+});
