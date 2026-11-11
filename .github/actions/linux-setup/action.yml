@@ -14,9 +14,18 @@ runs:
         EXTRA_PACKAGES: ${{ inputs.packages }}
       run: |
         set -euo pipefail
-        sudo apt-get update -qq
+        # The runner's mirror list starts with azure.archive.ubuntu.com, which sometimes stops resolving and leaves
+        # apt waiting until the job times out. Try archive.ubuntu.com first, keep the runner's mirrors after it, and
+        # give up after a few minutes instead of hanging.
+        mirrors=/etc/apt/apt-mirrors.txt
+        if [ -f "$mirrors" ] && ! grep -qx 'http://archive.ubuntu.com/ubuntu/' "$mirrors"; then
+          { echo 'http://archive.ubuntu.com/ubuntu/'; cat "$mirrors"; } | sudo tee "$mirrors.new" >/dev/null
+          sudo mv "$mirrors.new" "$mirrors"
+        fi
+        apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
+        sudo timeout 300 apt-get "${apt_options[@]}" update -qq
         read -ra extra <<<"$EXTRA_PACKAGES"
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+        sudo DEBIAN_FRONTEND=noninteractive timeout 600 apt-get "${apt_options[@]}" install -y -qq --no-install-recommends \
           clang pkg-config patch fakeroot xz-utils unzip curl util-linux openssl \
           dbus dbus-x11 libnss3-tools gnome-keyring \
           python3-gi gir1.2-glib-2.0 libglib2.0-dev \
