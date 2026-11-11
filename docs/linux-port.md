@@ -966,10 +966,9 @@ It works as on the Mac ([cli.md](cli.md), [automation.md](automation.md)); what 
 
 ### Telemetry
 
-- **Always on for the alpha.** `startHostTelemetry` (`hostTelemetry.ts`) calls `requireSharing()`, so sharing can't be
-  turned off: Settings › Privacy hides the toggle, onboarding skips the crash-report question and the new tab page
-  never asks. The rest of the Privacy section (your anonymous ID, What's Sent) stays. Ending this means removing the
-  `requireSharing()` call; nothing turns it off on its own.
+- **Off until you turn it on.** Sharing starts off, as on macOS. Settings › Privacy shows the toggle, onboarding asks
+  the crash-report question and the new tab page asks once; nothing is sent until you say yes. Upstream's Linux alpha
+  forces sharing on with `requireSharing()` and `enforceSharing()` in `startHostTelemetry`; this fork removes both.
 - **Sending.** The shell can't fetch, so the shared client posts through `ArdiaTelemetry.post` (`ac_linux_telemetry.cc`):
   native sends the OTLP body to the fixed `https://ardia.dev/otel/v1/logs` with the app's ingest key, over the system
   network context with no cookies, and answers the HTTP status (0 for a network error). JS keeps its queue, batching and

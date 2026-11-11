@@ -5,9 +5,8 @@ import { capture, devState, endSession, flush, loadChoice, queueLog, saveQueueNo
 import { reloadChoice, savedChoice } from "../../browser/src/state/telemetry/choice";
 import { DAILY_DOC } from "../../browser/src/state/telemetry/daily";
 import { requestLog } from "../../browser/src/state/telemetry/requestLog";
-import { requireSharing } from "../../browser/src/state/telemetry/required";
 import { setTelemetryRelay } from "../../browser/src/state/telemetry/relay";
-import { enforceSharing, reopenSession } from "../../browser/src/state/telemetry/sessionControl";
+import { reopenSession } from "../../browser/src/state/telemetry/sessionControl";
 import { setTelemetryHost } from "../../browser/src/state/telemetry/transport";
 import { emitWindowUsage, sessionEnding } from "../../browser/src/state/telemetry/usage";
 import { documentSaved } from "../../browser/src/platform/documents";
@@ -95,7 +94,6 @@ async function refreshState() {
 
 export function startHostTelemetry(options: { host: ArdiaHost; candidate: boolean; locks?: LeaderLocks; channel?: LeaderChannel | null }) {
   const { host, candidate } = options;
-  requireSharing();
   setTelemetrySettle({ settle: settleHostTelemetry, reopen: reopenHostTelemetry });
   setTelemetryHost({ os: "Linux", osType: "linux", send: hostSupports(TELEMETRY_POST, host) ? hostTelemetrySend(host) : null });
   loadChoice();
@@ -123,7 +121,6 @@ export function startHostTelemetry(options: { host: ArdiaHost; candidate: boolea
       const continuing = await continuesSession(host);
       reloadChoice();
       sessionEnded = continuing && !savedChoice().sessionOpen;
-      enforceSharing();
       startTelemetry({ continuing });
       await documentSaved(STATE_DOC).catch(report);
       current.announce();
