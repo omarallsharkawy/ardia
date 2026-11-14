@@ -71,6 +71,42 @@ export function localHoles(layer: Rect, scale: { x: number; y: number }, pages: 
   return holes;
 }
 
+export type UnderNode = { parentElement: UnderNode | null; children: ArrayLike<UnderNode> };
+
+export type UnderDeps<N extends UnderNode> = {
+  rectOf: (node: N) => Rect;
+  paints: (node: N) => boolean;
+  skip: (node: N) => boolean;
+};
+
+// Shell UI that comes before a page in paint order sits beneath it on macOS, where the page is a native view in the
+// same tree. Here the shell is above every page, so a sibling drawn under the page (a Peek card's panel, its scrim)
+// would cover it. These are the painting nodes before `slot`, up to `root`, that overlap `page`.
+export function paintersUnder<N extends UnderNode>(slot: N, root: N, page: Rect, deps: UnderDeps<N>): N[] {
+  const found: N[] = [];
+  const visit = (node: N) => {
+    if (deps.skip(node)) return;
+    const rect = deps.rectOf(node);
+    if (!intersection(rect, page)) return;
+    if (deps.paints(node)) found.push(node);
+    for (let i = 0; i < node.children.length; i++) visit(node.children[i] as N);
+  };
+  for (let child = slot, parent = slot.parentElement as N | null; parent && child !== root; child = parent, parent = parent.parentElement as N | null) {
+    for (let i = 0; i < parent.children.length; i++) {
+      const sibling = parent.children[i] as N;
+      if (sibling === child) break;
+      visit(sibling);
+    }
+    if (parent === root) break;
+  }
+  return found;
+}
+
+const raised = (element: HTMLElement) => {
+  const z = Number.parseInt(getComputedStyle(element).zIndex, 10);
+  return Number.isFinite(z) && z > 0;
+};
+
 const transparent = (color: string) => !color || color === "transparent" || /^rgba\(.*,\s*0\)$/.test(color);
 
 const box = (element: HTMLElement): Rect => {
@@ -115,10 +151,12 @@ export function createPageHoles(root: HTMLElement) {
     const floatingRects = pieces();
     const painting = new Set<HTMLElement>();
     const paints = (node: HTMLElement) => hosts.has(node) || !transparent(node.style.backgroundColor) || !transparent(getComputedStyle(node).backgroundColor);
-    for (const { slot } of pages) {
+    const underDeps: UnderDeps<HTMLElement & UnderNode> = { rectOf: box, paints, skip: (node) => layers.has(node) || raised(node) };
+    for (const { slot, rect } of pages) {
       for (const node of ancestorsOf(slot)) {
         if (paints(node)) painting.add(node);
       }
+      for (const node of paintersUnder(slot as HTMLElement & UnderNode, root as HTMLElement & UnderNode, rect, underDeps)) painting.add(node);
     }
     if (floating) for (const node of floatingHosts) if (node.isConnected && paints(node)) painting.add(node);
     for (const host of hosts.keys()) {
