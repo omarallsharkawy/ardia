@@ -149,6 +149,10 @@ The acceptance suite is in [linux-acceptance.md](linux-acceptance.md) and CI in 
 - **Canonical events.** These sync every renderer while keeping its pending edits. The renderer that sent a save gets
   its own snapshot as the next base; its peers get the previous canonical base.
 - **Native window ids** are fixed after bootstrap. A new window doesn't reapply the launch restore policy.
+- **Little Ardia windows** travel in the shared session like main windows, so every renderer agrees on them and a
+  close reaches them all. A launch drops them, so they are never restored. The renderer that opens one also leaves a
+  one-time seed in the shell's localStorage (`littleWindows.ts`, used within 60 s), because the new window's renderer
+  can start before the session write that carries it has landed and would otherwise come up as a blank main window.
 - **Canonical documents.** `LinuxDocuments` (`ac_linux_documents.*`) keeps the canonical copy of shared documents
   such as live folders and calendar settings in `live.canonical.json`, one per regular profile. Each write carries a
   revision and is merged by identity, with tombstones. Private and isolated profiles fail closed. The store imports the

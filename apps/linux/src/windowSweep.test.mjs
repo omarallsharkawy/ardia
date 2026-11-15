@@ -50,11 +50,11 @@ test("a window opened inside the session save delay survives a second renderer's
   assert.ok(!titled.includes(fresh));
 });
 
-test("a Little Ardia window the session never saves survives a reloaded renderer's sweep", async () => {
+test("a Little Ardia window the session shares survives a reloaded renderer's sweep", async () => {
   S().hydrate(initialLinuxSession({ bootstrap: { windowId: "main", profileId: "default", startup: false } }, null));
   const small = S().createWindow({ kind: "small", url: "https://example.com/" });
   const saved = snapshotHostSession(S());
-  assert.equal(saved.windows?.[small], undefined);
+  assert.equal(saved.windows?.[small]?.kind, "small");
   const { closed } = await startSecondRenderer("main", saved, ["main", small]);
   assert.deepEqual(closed, []);
 });

@@ -1,6 +1,6 @@
 import { registerSessionCloseHooks } from "./sessionClose";
 import type { BrowserState, HydrateData } from "../../browser/src/state/browser/store";
-import type { BrowserWindow, MainWindow, Tab } from "../../browser/src/state/browser/types";
+import type { BrowserWindow, Tab } from "../../browser/src/state/browser/types";
 import type { ArdiaHost } from "./host";
 import { reportHostError } from "./host.ts";
 import { canonicalSessionValue, cloneSessionValue, equalSessionValue, mergeSession } from "./hostSessionMerge.ts";
@@ -15,6 +15,7 @@ import { splitTabIds } from "../../browser/src/state/splits/splits";
 import { sessionWithPinChoiceStamps } from "../../browser/src/state/pins/pinChoices";
 import type { SavedObject } from "../../browser/src/lib/savedDocument";
 import { unclaimedAdoptId } from "./unclaimedTabs.ts";
+import { seedStorage, takeLittleWindowSeed, withLittleWindow, withoutLittleWindows, type SeedStorage } from "./littleWindows.ts";
 import { adoptedPage } from "../../browser/src/state/tabs/pageSession";
 
 type StoredWindow = Partial<BrowserWindow> & { incognito?: unknown; originalProfileId?: unknown; sidebarOpen?: unknown };
@@ -183,11 +184,12 @@ function withLaunchWindowAdopted(saved: HydrateData, windowId: string): HydrateD
   });
 }
 
-export function initialHostSession(host: ArdiaHost, saved: HydrateData | null | undefined, now = Date.now()): HydrateData {
+export function initialHostSession(host: ArdiaHost, saved: HydrateData | null | undefined, now = Date.now(), seeds: SeedStorage | null = seedStorage()): HydrateData {
   const { windowId } = host.bootstrap;
   const profileId = seedProfile(host.bootstrap);
   if (!windowId || !profileId || /[\\/\0]/.test(windowId + profileId)) throw new Error("Invalid Ardia host bootstrap IDs");
   if (saved) saved = linuxSessionShape(saved);
+  if (saved && host.bootstrap.startup === true) saved = withoutLittleWindows(saved);
   if (host.bootstrap.startup !== false && saved?.settings?.restoreSession === false) saved = withoutRestoredWindows(saved, now);
   if (saved?.closedWindows) saved = { ...saved, closedWindows: inClosingOrder(saved.closedWindows) };
   const privateSession = withPrivateWindow(host, saved ?? {});
@@ -197,6 +199,11 @@ export function initialHostSession(host: ArdiaHost, saved: HydrateData | null | 
   const profiles = { ...saved?.profiles };
   profiles[profileId] ??= profile;
   if (saved?.windows?.[windowId]?.tabIds.some((id) => saved.tabs?.[id])) return { ...saved, profiles, focusedWindowId: windowId };
+  const little = takeLittleWindowSeed(seeds, windowId, now);
+  if (little && profiles[little.window.profileId]) {
+    const order = saved?.profileOrder ?? [];
+    return withLittleWindow({ ...saved, profiles, profileOrder: order.includes(little.window.profileId) ? order : [...order, little.window.profileId] }, little);
+  }
   const seeds = seedTabs(host.bootstrap);
   const tabs: Tab[] = seeds.map(({ url, page }) => ({
     id: `t_${crypto.randomUUID()}`, windowId, profileId, url, title: "", favicon: null, pin: null, muted: false, zoom: 1,
@@ -219,8 +226,14 @@ const savedPageKind = (tab: Tab): Tab["page"] => ({ kind: tab.page.kind === "asl
 const publicTabs = (entry: { tabs: { profileId: string }[] }) => entry.tabs.every((tab) => publicProfile(tab.profileId));
 const publicTable = <T,>(table: Record<string, T>) => Object.fromEntries(Object.entries(table).filter(([id]) => publicProfile(id)));
 
+// Little Ardia windows are shared with the other windows' renderers too; a launch drops them (initialHostSession).
+type SharedWindow = Exclude<BrowserWindow, { kind: "private" }>;
+
 export function snapshotHostSession(s: BrowserState): HydrateData {
-  const windows = Object.fromEntries(Object.values(s.windows).filter((w): w is MainWindow => w.kind === "main").map(({ chromeWindow: _, ...w }) => [w.id, w]));
+  const windows = Object.fromEntries(Object.values(s.windows).filter((w): w is SharedWindow => w.kind === "main" || w.kind === "small").map((shared) => {
+    const { chromeWindow: _, ...w } = shared as SharedWindow & { chromeWindow?: string };
+    return [w.id, w];
+  }));
   const tabs = Object.fromEntries(Object.values(s.tabs)
     .filter((t) => windows[t.windowId] && publicProfile(t.profileId) && !Object.values(s.peeks).some((p) => p.tabId === t.id))
     .map((tab): [string, Tab] => [tab.id, { ...tab, page: savedPageKind(tab) }]));
