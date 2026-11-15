@@ -332,7 +332,7 @@ class PackagingTests(unittest.TestCase):
                 self.assertTrue(os.access(installed / 'lib/ardia/chrome', os.X_OK))
                 self.assertTrue((installed / 'lib/ardia/ardia-ui/index.html').is_file())
                 launcher = (installed / 'bin/ardia').read_text()
-                self.assertIn(f'exec "{prefix}/lib/ardia/chrome" "$@"', launcher)
+                self.assertIn(f'exec "{prefix}/lib/ardia/ardia" "$@"', launcher)
                 self.assertNotIn(str(destdir), launcher)
                 self.assertTrue(os.access(installed / 'bin/ardia', os.X_OK))
                 desktop = (installed / 'share/applications/ardia.desktop').read_text()
