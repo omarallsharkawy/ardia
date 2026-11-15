@@ -97,7 +97,7 @@ def add_cli(runtime, tarball, digest, installer=CLI_INSTALLER):
 def launcher_body(lib):
     """The launcher's body after its shebang. Links from other apps go to the running Ardia first, so they follow
     Settings › General › Open links from other apps in Little Ardia; anything else starts Chrome."""
-    return f'{lib}/open-links "$@" 2>/dev/null && exit 0\nexec {lib}/chrome "$@"\n'
+    return f'{lib}/open-links "$@" 2>/dev/null && exit 0\nexec {lib}/ardia "$@"\n'
 
 
 def package(output, ui, destination, content_blocker=None, version=None, cli=None):
@@ -123,6 +123,10 @@ def package(output, ui, destination, content_blocker=None, version=None, cli=Non
         runtime = root / 'lib/ardia'
         runtime.mkdir(parents=True)
         runtime_files.copy(output, runtime)
+        # The binary is named ardia, so system monitors and task bars show Ardia rather than chrome for the browser
+        # and its helper processes (they re-exec /proc/self/exe); chrome stays as a link for anything that runs it.
+        (runtime / 'chrome').rename(runtime / 'ardia')
+        (runtime / 'chrome').symlink_to('ardia')
         shutil.copytree(ui, runtime / 'ardia-ui')
         if version is not None:
             (runtime / 'VERSION').write_text(version + '\n')

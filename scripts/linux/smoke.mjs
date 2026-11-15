@@ -660,7 +660,9 @@ class Smoke {
       if (!staged || !packaged || !staged.equals(packaged)) problems.push(`the staged ${name} differs from the package's`);
     }
     const launcher = await readFile(join(stage, "usr/bin/ardia"), "utf8").catch(() => "");
-    if (!launcher.includes('exec "/usr/lib/ardia/chrome"')) problems.push(`the staged launcher does not exec /usr/lib/ardia/chrome: ${JSON.stringify(launcher)}`);
+    if (!launcher.includes('exec "/usr/lib/ardia/ardia"')) problems.push(`the staged launcher does not exec /usr/lib/ardia/ardia: ${JSON.stringify(launcher)}`);
+    const link = await readlink(join(stage, "usr/lib/ardia/chrome")).catch(() => null);
+    if (link !== "ardia") problems.push(`the staged lib/ardia/chrome is not a link to ardia: ${JSON.stringify(link)}`);
     const desktop = await readFile(join(stage, "usr/share/applications/ardia.desktop"), "utf8").catch(() => "");
     if (!/^Exec=\/usr\/bin\/ardia /m.test(desktop)) problems.push("the staged desktop entry does not run /usr/bin/ardia");
     const policy = await readFile(join(stage, "usr/share/polkit-1/actions/dev.ardia.linux.policy")).catch(() => null);
