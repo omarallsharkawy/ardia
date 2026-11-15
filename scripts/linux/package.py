@@ -94,6 +94,12 @@ def add_cli(runtime, tarball, digest, installer=CLI_INSTALLER):
     return digest
 
 
+def launcher_body(lib):
+    """The launcher's body after its shebang. Links from other apps go to the running Ardia first, so they follow
+    Settings › General › Open links from other apps in Little Ardia; anything else starts Chrome."""
+    return f'{lib}/open-links "$@" 2>/dev/null && exit 0\nexec {lib}/chrome "$@"\n'
+
+
 def package(output, ui, destination, content_blocker=None, version=None, cli=None):
     if version is not None:
         check_version(version)
@@ -129,9 +135,12 @@ def package(output, ui, destination, content_blocker=None, version=None, cli=Non
             shutil.copytree(content_blocker, blocker, ignore=shutil.ignore_patterns('_metadata'))
             for path in sorted(BRIDGE.iterdir()):
                 shutil.copy2(path, blocker / path.name)
+        open_links = runtime / 'open-links'
+        shutil.copyfile(pathlib.Path(__file__).resolve().parent / 'open-links.py', open_links)
+        open_links.chmod(0o755)
         launcher = root / 'bin/ardia'
         launcher.parent.mkdir()
-        launcher.write_text('#!/usr/bin/env sh\nardia_bin_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$ardia_bin_dir/../lib/ardia/chrome" "$@"\n')
+        launcher.write_text('#!/usr/bin/env sh\nardia_bin_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\n' + launcher_body('"$ardia_bin_dir/../lib/ardia"'))
         launcher.chmod(0o755)
         desktop = root / 'share/applications/ardia.desktop'
         desktop.parent.mkdir(parents=True)

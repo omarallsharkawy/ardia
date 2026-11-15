@@ -106,6 +106,10 @@ bookmark searches) and their fixed page title.
   approved revision never runs an edited program.
 - `answer` `{"decide", "answer"}`: see Protocol.
 - `workspace` `{"window"?, "profile"?, "usage"?}` and `apply` `{"ops": [...]}`: see Tabs and groups.
+- `openLinks` `{"urls"}` → `{"ok": true}`: opens up to 20 http, https or file links as links from another app, so
+  Settings › General › Open links from other apps in Little Ardia decides where they go. On Linux the `ardia` launcher
+  sends this when Ardia is running and it was given only links (`scripts/linux/open-links.py`); otherwise, or when
+  control is off, it starts Chrome, which opens them as plain tabs. `bad_request` for anything else.
 - `offscreen` `{"tab"}` → `{"ok": true}`: takes a tab the ardia command opened, and that was never shown, out of
   its window and the sidebar into Ardia's automation window for that profile, where `ardia browse set viewport` may
   size its page (`docs/cli.md` › Gated by the token policy). `refused` for the shown tab, one the command didn't

@@ -74,7 +74,7 @@ fi
 
 launcher=$(mktemp)
 trap 'rm -f "$launcher"' EXIT
-printf '#!/usr/bin/env sh\nexec "%s/lib/ardia/chrome" "$@"\n' "$prefix" > "$launcher"
+printf '#!/usr/bin/env sh\n"%s/lib/ardia/open-links" "$@" 2>/dev/null && exit 0\nexec "%s/lib/ardia/chrome" "$@"\n' "$prefix" "$prefix" > "$launcher"
 install -m 0755 "$launcher" "$target/bin/ardia"
 
 sed "s|^Exec=ardia |Exec=$prefix/bin/ardia |" "$source_root/share/applications/ardia.desktop" > "$launcher"

@@ -27,6 +27,8 @@ import { launchToReplay, recordLaunch, runLaunchActions } from "./lifecycleEvent
 import { startDecideHooks } from "./decideHooks";
 import { offscreenMethod } from "./offscreen";
 import { applyMethod, workspaceMethod } from "./workspaceMethods";
+import { parseOpenLinks } from "./openLinks";
+import { openExternalUrls } from "../littleArdia/actions";
 
 export const useControlSocket = create<{ status: ControlSocketStatus | null }>()(() => ({ status: null }));
 
@@ -168,6 +170,12 @@ function answer(connection: number, method: string, params: Record<string, unkno
     case "apply": {
       const serving = generation;
       return applyMethod(params, () => generation === serving && controlOn());
+    }
+    case "openLinks": {
+      const urls = parseOpenLinks(params);
+      if ("error" in urls) return failure("bad_request", urls.error);
+      openExternalUrls(urls);
+      return { result: { ok: true } };
     }
     case "subscribe":
       return subscribe(connection, params);
