@@ -88,11 +88,3 @@ test("the session shares Little Ardia with other renderers, and a launch drops i
   assert.ok(launched.windows.main);
   assert.deepEqual(withoutLittleWindows({ windows: {} }), { windows: {} });
 });
-
-test("Little Ardia titles start with Little Ardia and drop the profile name", async () => {
-  const { littleWindowTitle } = await import("./littleWindows.ts");
-  assert.equal(littleWindowTitle("Personal — Example Domain"), "Little Ardia — Example Domain");
-  assert.equal(littleWindowTitle("Work — a — b"), "Little Ardia — a — b");
-  assert.equal(littleWindowTitle(""), "Little Ardia");
-  assert.match(littleWindowTitle("Personal — New Tab"), /^Little Ardia/);
-});

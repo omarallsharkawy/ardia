@@ -4,7 +4,7 @@ import type { BrowserWindow, Tab } from "../../browser/src/state/browser/types";
 import type { ArdiaHost } from "./host";
 import { invokeHost, reportHostError } from "./host.ts";
 import { engineProfile, isIncognitoProfile } from "../../browser/src/state/browser/model";
-import { leaveLittleWindowSeed, littleWindowTitle, seedStorage } from "./littleWindows.ts";
+import { leaveLittleWindowSeed, seedStorage } from "./littleWindows.ts";
 
 export type PrivateWindowSeed = { window: BrowserWindow; tabs: Record<string, Tab> };
 type OpenOptions = Record<string, unknown> & { incognito?: boolean; profile?: string };
@@ -82,10 +82,7 @@ export function createHostWindowOpener(host: ArdiaHost, state: () => Pick<Browse
   return async (id: string, options: OpenOptions = {}) => {
     const seed = options.incognito ? privateWindowSeed(state(), id) : undefined;
     try {
-      if (options.kind === "small") {
-        leaveLittleWindowSeed(seedStorage(), state(), id);
-        options = { ...options, title: littleWindowTitle(typeof options.title === "string" ? options.title : "") };
-      }
+      if (options.kind === "small") leaveLittleWindowSeed(seedStorage(), state(), id);
       if (options.incognito && !seed) throw Object.assign(new Error("The private window has no state to open"), { code: "ERR_PROFILE_INVALID" });
       const reply = await invokeHost<{ pending?: boolean } | null>("ArdiaShell.openWindow", { args: [id, seed ? { ...options, privateWindow: seed } : options] }, host);
       if (reply?.pending === true) waiting.add(id);

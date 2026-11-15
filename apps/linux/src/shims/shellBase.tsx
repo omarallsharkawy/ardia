@@ -10,7 +10,6 @@ import { linuxHostDialogs } from "../hostDialogs";
 import { createHostDocuments } from "../hostDocuments";
 import { createHostWindowOpener, dropRefusedWindow } from "../hostWindowProfiles";
 import { createLinuxWindowIds } from "../windowSweep";
-import { littleWindowTitle } from "../littleWindows";
 import { useBrowser } from "../../../browser/src/state/browser/store";
 
 export { Symbol } from "./web/Symbol";
@@ -95,10 +94,7 @@ const claimHostFocus = async (generation: number, tag: number) => {
 };
 const openHostWindow = ardiaHost ? createHostWindowOpener(ardiaHost, () => useBrowser.getState(), (event) => emitWindowEvent(event), (id) => dropRefusedWindow(useBrowser, id)) : undefined;
 const pickHostFolder = ardiaHost ? createFolderPicker(ardiaHost, (options) => linuxHostDialogs().confirm(options).then((answer) => answer.confirmed)) : undefined;
-// Little Ardia keeps its title prefix after the opener's (littleWindows.ts), so window rules can float it.
-const setHostWindowTitle = (id: string, title: string) =>
-  hostModuleMethod("ArdiaShell", "setWindowTitle")(id, useBrowser.getState().windows[id]?.kind === "small" ? littleWindowTitle(title) : title);
-const hostShellLocals: Record<string, unknown> = { readDocument, writeDocument, saveDocument, documentSaved, removeDocument, claimFocus: claimHostFocus, openWindow: openHostWindow, pickFolder: pickHostFolder, setWindowTitle: setHostWindowTitle };
+const hostShellLocals: Record<string, unknown> = { readDocument, writeDocument, saveDocument, documentSaved, removeDocument, claimFocus: claimHostFocus, openWindow: openHostWindow, pickFolder: pickHostFolder };
 const hostAppLocals: Record<string, unknown> = { systemInfo, launchConfig };
 provideNativeModuleProvider((module, method) => ardiaHost ? (module === "ArdiaShell" ? hostShellLocals[method] : module === "ArdiaApp" ? hostAppLocals[method] : undefined) : undefined);
 const shellLocals: Record<string, unknown> = {
