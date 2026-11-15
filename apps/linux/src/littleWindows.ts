@@ -122,3 +122,15 @@ export function withoutLittleWindows(session: HydrateData): HydrateData {
     focusedWindowId: session.focusedWindowId && gone.has(session.focusedWindowId) ? null : session.focusedWindowId,
   };
 }
+
+// A Little Ardia window's title starts with this on Linux, so a tiling compositor's window rules can tell it from a
+// main window (both have app id `ardia`) and open it floating, as it is on macOS. niri, for example:
+//   window-rule { match app-id="^ardia$" title="^Little Ardia"; open-floating true; }
+// The opener passes the title, so the window has it before it is first shown.
+export const LITTLE_TITLE = "Little Ardia";
+
+export function littleWindowTitle(title: string): string {
+  const cut = title.indexOf(" — ");
+  const label = (cut >= 0 ? title.slice(cut + 3) : title).trim();
+  return label ? `${LITTLE_TITLE} — ${label}` : LITTLE_TITLE;
+}
